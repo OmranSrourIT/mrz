@@ -1,164 +1,230 @@
-import React, { useState } from "react";
-import Tesseract from "tesseract.js";
+import React, { Component } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css'; 
+import './Mrz.css';
 
-const MrzReader = () => {
-  const [image, setImage] = useState(null);
-  const [mrzData, setMrzData] = useState("");
-  const [parsedMrz, setParsedMrz] = useState({});
-  const [loading, setLoading] = useState(false);
+class OCRApp extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      selectedImage: null,
+      ocrText: '',
+      loading: false,
+      json: null,
+      Dataobj: {},
+      JsonObject: '{'
+    };
+    this.observer = null; // MutationObserver reference
+    this.divRef = React.createRef();
 
-  // Handle file input change
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const imageURL = URL.createObjectURL(file);
-      setImage(imageURL);
-    }
-  };
+  }
 
-  // Preprocess the image using canvas (crop and thresholding)
-  const preprocessImage = (imageUrl) => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.src = imageUrl;
-      img.crossOrigin = "Anonymous";
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
 
-        // Crop the MRZ section (approximate the bottom 20% of the image)
-        const cropY = img.height * 0.75; // Adjust this value as needed
-        const cropHeight = img.height * 0.25;
-        canvas.width = img.width;
-        canvas.height = cropHeight;
+  componentDidMount() {
+ 
+    const div = this.divRef.current;
 
-        // Draw and crop the image
-        ctx.drawImage(img, 0, cropY, img.width, cropHeight, 0, 0, canvas.width, canvas.height);
-
-        // Apply grayscale
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        for (let i = 0; i < data.length; i += 4) {
-          const grayscale = (data[i] + data[i + 1] + data[i + 2]) / 3;
-          data[i] = data[i + 1] = data[i + 2] = grayscale;
+    // Create a MutationObserver to watch for changes to the div's content
+    this.observer = new MutationObserver((mutationsList, observer) => {
+      for (let mutation of mutationsList) {
+        if (mutation.type === 'childList' || mutation.type === 'characterData') {
+          this.handleDivContentChange(); // Call the function when div content changes
         }
-        ctx.putImageData(imageData, 0, 0);
-
-        // Apply thresholding (binary conversion)
-        for (let i = 0; i < data.length; i += 4) {
-          const grayscale = data[i];
-          const binary = grayscale > 128 ? 255 : 0; // Thresholding value
-          data[i] = data[i + 1] = data[i + 2] = binary;
-        }
-        ctx.putImageData(imageData, 0, 0);
-
-        // Convert to data URL and resolve
-        resolve(canvas.toDataURL());
-      };
+      }
     });
+
+    // Configure the observer to watch for content changes (text, child elements)
+    this.observer.observe(div, { childList: true, characterData: true, subtree: true });
+ 
+    setTimeout(() => {
+
+      // Create a script tag
+      const script = document.createElement('script');
+
+      // Set the src attribute to the external JS file
+      script.src = './demo.bundle.js';
+      script.async = true;
+      // Append the script tag to the body
+      document.body.appendChild(script);
+
+    }, 2000);
+ 
+
+    const script2 = document.createElement('script');
+
+    // Set the src attribute to the external JS file
+    script2.src = './mrz-worker.bundle-wrapped.js';
+    script2.async = true;
+    // Append the script tag to the body
+    document.body.appendChild(script2);
+
+
+
+  }
+
+  componentWillUnmount() {
+    // Disconnect the observer when the component unmounts to avoid memory leaks
+    if (this.observer) {
+      this.observer.disconnect();
+    }
+  }
+
+  handleDivContentChange = () => {
+ this.getTextFromDiv();
   };
-  // Parse MRZ data using regex
-  const parseMrz = (text) => {
-    console.log("Raw MRZ Text: ", text); // Log the raw text for inspection
-    
-    const lines = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
-    console.log("Parsed Lines: ", lines); // Log the parsed lines
-    
-    if (lines.length >= 2) {
-      const line1 =  lines[0];
-      const line2 = lines[1];
-      
-      // MRZ line 1 regex
-      const line1Regex = /^([A-Z<]{2})([A-Z<]{3})([A-Z<]+)<<([A-Z<]+)$/;
-      const line2Regex = /^([A-Z0-9<]{9})([0-9]{6})([MF<])([0-9]{6})([A-Z0-9<]{10})([0-9<]+)$/;
-      
-      const line1Match = line1.match(line1Regex);
-      const line2Match = line2.match(line2Regex);
+
   
-      if (line1Match) {
-        return {
-          documentType: line1Match[1].replace(/</g, ''),
-          issuingCountry: line1Match[2].replace(/</g, ''),
-          surname: line1Match[3].replace(/</g, ' '),
-          givenNames: line1Match[4].replace(/</g, ' '),
-        //   passportNumber: line2Match[1].replace(/</g, ''),
-        //   birthDate: line2Match[2],
-        //   gender: line2Match[3],
-        //   expirationDate: line2Match[4],
-        //   nationality: line2Match[5],
-        };
-      } else {
-        console.error("Regex match failed");
+
+  ConvertDateStringToDate = (DateString) => {
+     
+    if (DateString === "") {
+      return "";
+    }
+    const inputDate = DateString; // YYMMDD format
+
+    // Extract year, month, and day
+    let year = parseInt(inputDate.substring(0, 2), 10);
+    let month = parseInt(inputDate.substring(2, 4), 10) - 1; // Months are 0-indexed in JavaScript Date
+    let day = parseInt(inputDate.substring(4, 6), 10);
+
+    // Adjust year: Assuming 1900s for years < 50, otherwise 2000s
+    year += year < 50 ? 2000 : 1900;
+
+    // Create date object
+    const date = new Date(year, month, day);
+
+    // Format the date as YYYY-MM-DD
+    const formattedDate = `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+
+    return formattedDate;
+
+  }
+ 
+  getTextFromDiv = () => {
+    if (this.divRef.current) {
+
+      debugger;
+      if(this.divRef.current.textContent === "")
+      {
+        this.setState({
+          Dataobj :{}
+        })
+        return;
       }
-    } else {
-      console.error("Insufficient lines in MRZ text");
+      if (this.divRef.current.textContent.includes(this.state.JsonObject)) {
+
+        var DataObjectReuslt = this.divRef.current.textContent.split('}')[0];
+ 
+        if (DataObjectReuslt.trim().slice(-1) !== '}') {
+          DataObjectReuslt += '}';
+        }
+        const parsedData = JSON.parse(DataObjectReuslt);
+      
+        this.setState({
+          Dataobj: parsedData
+        })
+         
+      } else {
+        toast.warn('يرجى رفع صورة عن الجواز بالطريقه الصحيحه وابعاد مناسبة', {
+            position: 'top-center',
+            autoClose: 3000, 
+            style: { 
+              fontSize: '25px', // Increase font size
+              padding: '25px',  // Add padding for larger size
+              minWidth: '350px', // Set a larger width
+              color : 'black',
+              fontWeight : 'bold'
+          },
+        });
+      
+      }
+
     }
   };
-  // Process the image for MRZ data
-  const handleReadMrz = async () => {
-    if (!image) return;
 
-    setLoading(true);
-    const preprocessedImage = await preprocessImage(image);
+     
+  render() {
 
-    Tesseract.recognize(
-      preprocessedImage,
-      'eng', // Only recognize English characters
-      {
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<', // MRZ character set
-        psm: 6, // Assume block of text (use other psm if needed)
-      }
-    )
-      .then(({ data: { text } }) => {
-        debugger;
-        setMrzData(text); 
-        setParsedMrz(parseMrz(text));
-        console.log("Extracted Text: ", text);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error reading MRZ:", err);
-        setLoading(false);
-      });
-  };
+    const Dataobj = [this.state.Dataobj]
 
-  return (
-    <div>
-      <h1>MRZ Reader</h1>
-      <input type="file" accept="image/*" onChange={handleFileChange} />
-      {image && (
+    return (
+      <>
+
         <div>
-          <img src={image} alt="Passport" style={{ width: "300px" }} />
-          <button onClick={handleReadMrz} disabled={loading}>
-            {loading ? "Processing..." : "Read MRZ"}
-          </button>
+          <ToastContainer />
         </div>
-      )}
-      {mrzData && (
-        <div>
-          <h3>Extracted MRZ Data:</h3>
-          <pre>{mrzData}</pre>
+        <div className="wrapper">
+
+          <div className="file-upload">
+            <label htmlFor="photo" className="file-upload-label">تحميل الصورة</label>
+            <input id="photo" name="photo" type="file" className="file-upload-input" />
+          </div>
+ 
+          <div className="progress">
+            <div className="gradient">
+              <div className="progress-wrapper">
+                <div className="progress-text"></div>
+                <progress></progress>
+              </div>
+            </div>
+          </div>
+          <div className="content">
+            <div  style={{ display: 'none' }} ref={this.divRef} id="parsed"></div>
+            <div id="detected"  className="detected-image">
+              <canvas onDoubleClick={()=>{alert('ddd')}} id="canvas"></canvas>
+            </div>
+
+            <div className="data-form">
+              <h2>Document Details</h2>
+
+              <div className="form-group">
+                <label>Document Code</label>
+                <input style={{color:'red' , fontWeight:'bold',textAlign:'center'}} type="text" value={(Dataobj[0].documentCode || "").toUpperCase()} readOnly />
+              </div>
+
+              <div className="form-group">
+                <label>First Name</label>
+                <input style={{color:'red' , fontWeight:'bold',textAlign:'center'}} type="text" value={(Dataobj[0].firstName || "").toUpperCase()} readOnly />
+              </div>
+
+              <div className="form-group">
+                <label>Last Name</label>
+                <input style={{color:'red' , fontWeight:'bold',textAlign:'center'}} type="text" value={(Dataobj[0].lastName || "").toUpperCase()} readOnly />
+              </div>
+
+              <div className="form-group">
+                <label>Issuing State</label>
+                <input style={{color:'red' , fontWeight:'bold',textAlign:'center'}} type="text" value={(Dataobj[0].issuingState || "").toUpperCase()} readOnly />
+              </div>
+
+              <div className="form-group">
+                <label>Nationality</label>
+                <input style={{color:'red' , fontWeight:'bold',textAlign:'center'}} type="text" value={(Dataobj[0].nationality || "").toUpperCase()} readOnly />
+              </div>
+
+              <div className="form-group">
+                <label>Birth Date</label>
+                <input  style={{color:'red' , fontWeight:'bold',textAlign:'center'}} type="text" value={this.ConvertDateStringToDate(Dataobj[0].birthDate || "")} readOnly />
+              </div>
+
+              <div className="form-group">
+                <label>Expiration Date</label>
+                <input style={{color:'red' , fontWeight:'bold',textAlign:'center'}} type="text" value={this.ConvertDateStringToDate(Dataobj[0].expirationDate || "")} readOnly />
+              </div>
+
+              <div className="form-group">
+                <label>Gender</label>
+                <input style={{color:'red' , fontWeight:'bold',textAlign:'center'}} type="text" value={(Dataobj[0].sex || "").toUpperCase()} readOnly />
+              </div>
+
+              <button style={{fontWeight:'bold',fontSize:'20px'}} onClick={this.getTextFromDiv}>ترحيل البيانات</button>
+            </div>
+          </div>
         </div>
-      )}
-      {parsedMrz && (
-        <div>
-          <h3>Parsed MRZ Information:</h3>
-          <p>Document Type: {parsedMrz.documentType}</p>
-          <p>Issuing Country: {parsedMrz.issuingCountry}</p>
-          <p>Surname: {parsedMrz.surname}</p>
-          <p>Given Names: {parsedMrz.givenNames}</p>
-          <p>Passport Number: {parsedMrz.passportNumber}</p>
-          <p>Birth Date: {parsedMrz.birthDate}</p>
-          <p>Gender: {parsedMrz.gender}</p>
-          <p>Expiration Date: {parsedMrz.expirationDate}</p>
-          <p>Nationality: {parsedMrz.nationality}</p>
-        </div>
-      )}
-    </div>
-  );
-  
-};
+      </>
+    );
 
-export default MrzReader;
+  }
+}
 
-
+export default OCRApp;

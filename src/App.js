@@ -1,10 +1,10 @@
 import logo from './logo.svg';
 import './App.css';
-import MrzReader from './Component/MRZReader';
+import OCRApp from './Component/MRZReader';
 function App() {
   return (
     <div className="App">
-     <MrzReader/>
+     <OCRApp/>
     </div>
   );
 }
