@@ -11,10 +11,12 @@ input#photo{
 }
 
 .file-upload {
+  padding: 15px;
   position: relative;
   display: inline-block;
   cursor: pointer;
-  margin: 25px;
+  margin-bottom: 25px;
+  justify-self: center;
 }
 
 .file-upload-photo {
@@ -22,12 +24,15 @@ input#photo{
 }
 
 .file-upload-label {
+  font-size: 16px;
+  width: 165px;
+  text-align: center;
   font-weight: bold;
   position: relative;
   right: 40%; 
   display: inline-block;
   padding: 10px 20px;
-  background-color: #007bff;
+  background-color: #024444;
   color: white;
   border-radius: 5px;
   border: none;
@@ -39,16 +44,9 @@ input#photo{
   background-color: #0056b3; /* Darker shade on hover */
 }
 
-/* canvas {
-  width: 400px;
-  height: auto;
-  max-height: 300px;
-  transform: rotate(90deg);
-  position: relative;
-} */
-
+ 
  canvas {
-  width: 500px;
+  width: 514px;
   height: 350px;
   max-height: 524px;
  
@@ -58,12 +56,15 @@ input#photo{
 
 .wrapper {
   display: flex;
+  direction: ltr;
   flex-direction: column;
   align-items: center;
-  padding: 20px;
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 84%;
+  /* max-width: 1200px; */
+  /* margin: 0 auto; */
+  position: relative;
+  left: 9%;
+  top: 90px;
 }
 
 .input {
@@ -71,10 +72,20 @@ input#photo{
 }
 
 .content {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  flex-wrap: wrap;
+  display: flex; 
+}
+
+.BtnTransfer{
+  font-weight: bold;
+    font-size: 20px;
+    color: white;
+    background-color: rgb(2, 68, 68);
+    left: -6%;
+    top: 10%;
+    /* position: relative; */
+    width: 50%;
+    margin-right: 24%;
+    margin-top: 5%;
 }
 
 .detected-image {
@@ -86,14 +97,16 @@ input#photo{
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   margin-right: 20px;
+  height: 370px;
 }
 
 .data-form {
+  direction: rtl;
   border: 2px solid #ddd;
-  display: grid;
+  display: -webkit-box; 
   grid-template-columns: 1fr 1fr;
   grid-gap: 20px;
-  width: 45%;
+  width: 65%;
   padding: 45px;
   background: #f9f9f9;
   border-radius: 8px;
@@ -101,25 +114,29 @@ input#photo{
 }
 
 .data-form h2 {
-  grid-column: span 2;
+  position: relative;
+  /* grid-column: span 2; */
   text-align: center;
   color: #333;
+  top: -21%;
+  right: 70%;
 }
 
-.form-group {
-  display: flex;
+.form-groupData {
+  display: inline-flex;
   flex-direction: column;
   margin-bottom: 15px;
   margin: 5px;
 }
 
-.form-group label {
+.form-groupData label {
   font-weight: bold;
   margin-bottom: 5px;
   color: #555;
+  align-self: center;
 }
 
-.form-group input {
+.form-groupData input {
   border: 1px solid #ddd;
   padding: 10px;
   border-radius: 5px;
@@ -162,13 +179,22 @@ button:hover {
   }
 }
 
+button:hover {
+  background-color: #056161;
+}
+
+.file-upload-label:hover {
+  background-color: #056161;
+}
+
 
 /* Progress Bar Styles */
 .progress {
+  z-index: 99999999;
   visibility: hidden;
   position: fixed;
   top: 0;
-  background-color: white;
+  background-color: #000000ab;
   width: 100%;
   height: 100%;
 }
@@ -176,23 +202,23 @@ button:hover {
 .progress.visible {
   visibility: visible;
 }
-
+ 
 .progress-wrapper {
   display: inline-flex;
-  position: relative;
-  left: 28%;
-  margin-top: 11%;
-  font-size: 2em;
-  padding: 2em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  width: 40%;
-  border: 2px solid black;
-  background: white;
-  box-shadow: 0.5em 0.5em 0.5em rgba(0, 0, 0, 0.25);
-  border-radius: 0.2em;
+    position: fixed;
+    margin: 15%;
+    left: 14%; 
+    font-size: 2em;
+    padding: 2em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    width: 45%;
+    border: 2px solid black;
+    background: white;
+    box-shadow: 0.5em 0.5em 0.5em rgba(0, 0, 0, 0.25);
+    border-radius: 0.2em;
 }
 
 progress {
