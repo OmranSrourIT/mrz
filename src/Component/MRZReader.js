@@ -13,9 +13,42 @@ class OCRApp extends Component {
     this.state = { 
       Dataobj: {},  
       base64String: "",
+      UrlBase64IMage : "",
     };
     
   }
+
+  componentDidMount()
+  {
+    debugger;
+    const { state } = this.props.location;
+   
+    if(state?.message)
+      {
+    var reulst = state?.message;
+    const imgScan = document.getElementById('IMgScan'); 
+    imgScan.src = reulst;
+   
+      this.GetDataFromOCR(reulst?.split(',')[1]); 
+
+      debugger; 
+      this.props.navigate(this.props.location.pathname, { replace: true, state: {} });
+
+    }
+  
+    
+  }
+
+  navigateHome = (Path) => {
+    
+    debugger;
+    // Send this.props along with the URL
+    this.props.navigate(Path, { state: { 
+      urlImage: this.state.UrlBase64Image,
+      ...this.props.props // Spread operator to send all props
+    }});
+   
+  };
  
   async GetDataFromOCR(ImageBase64)
   { 
@@ -26,20 +59,51 @@ class OCRApp extends Component {
       };
   
       try {
-        const response = await axios.post('http://192.168.3.129:3030/passImage', postData);
-        debugger;
-        this.setState({ Dataobj: response.data?.fields });
+        const response = await axios.post('http://localhost:3030/passImage', postData);
+        
+        var DFullname = response.data?.fields.firstName + ' ' + response.data?.fields.lastName 
+        
+        var ObNewjFilds = this.splitName(DFullname);
+        Object.assign(ObNewjFilds, response.data?.fields);
+
+        this.setState(
+          { Dataobj: ObNewjFilds , IsDataFill : true 
+
+          },()=>{ 
+        //    this.props.props.ImageOCRValue.setValue(JSON.stringify(ObNewjFilds));
+          });
+          debugger;
+
       } catch (error) {
         debugger;
         if(error.response)
         { 
-         alert(error.response.data.message);
+          this.setState({
+            Dataobj: {
+              documentCode: '',
+              documentNumber: '',
+              firstName: '',
+              lastName: '',
+              issuingState: '',
+              nationality: '',
+              birthDate: '',
+              expirationDate: '',
+              sex: ''
+            }, 
+            base64String: "",
+            IsDataFill:false
+          },()=>{
+            debugger;
+            alert(error.response.data.message);
+          })
+
+        
         }
        
       }
 
     }else
-    {
+    { 
       alert('Please adding Image')
     }
     
@@ -47,20 +111,44 @@ class OCRApp extends Component {
 
   
   handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        var UrlResultBase64  = reader.result;
-        var ResultBase64 = reader.result?.split(',')[1]
-        this.GetDataFromOCR(ResultBase64);
-        const imgScan = document.getElementById('IMgScan');
-        imgScan.src = UrlResultBase64 ;
-     
-        this.setState({ base64String: ResultBase64 });
-      };
-      reader.readAsDataURL(file); // Convert the file to base64 string
-    }
+    debugger;
+    this.setState({ base64String: "" , Dataobj: {
+      documentCode: '',
+      documentNumber: '',
+      firstName: '',
+      lastName: '',
+      issuingState: '',
+      nationality: '',
+      birthDate: '',
+      expirationDate: '',
+      sex: ''
+    }, },()=>{
+      const imgScan = document.getElementById('IMgScan');
+      var UrlResultBase64  = "";
+      var ResultBase64 = "" ; 
+      imgScan.src = "";
+      
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if(reader.result){
+            UrlResultBase64  = reader.result;
+            ResultBase64 = reader.result?.split(',')[1]
+           this.GetDataFromOCR(ResultBase64);
+          
+           imgScan.src = UrlResultBase64 ;
+        
+           this.setState({ base64String: ResultBase64 , UrlBase64IMage :UrlResultBase64  });
+          }
+         
+        };
+        reader.readAsDataURL(file); // Convert the file to base64 string
+      }
+    });
+  
+
+    
   };
 
 
@@ -127,6 +215,7 @@ class OCRApp extends Component {
   
   ConvertDateStringToDate = (DateString) => {
 
+    debugger;
 
     if (DateString === "") {
       return "";
@@ -161,8 +250,7 @@ class OCRApp extends Component {
     debugger;
      
     return (
-      <>
-
+      <> 
         <div>
           <ToastContainer />
         </div>
@@ -173,64 +261,58 @@ class OCRApp extends Component {
               <button htmlFor="photo" className="file-upload-label">خروج</button>
             </div> 
             <div className="file-upload">
+              <button onClick={()=>this.navigateHome('/Scanner')} htmlFor="photo" className="file-upload-label">مسح مستمسك</button>
+            </div>
+            <div className="file-upload">
               <label htmlFor="photo" className="file-upload-label" >تحميل الصورة</label>
-              <input id="photo" name="photo" type="file" onChange={this.handleFileChange}  className="file-upload-input" /> 
-            </div>  
+              <input id="photo" name="photo" type="file" accept="image/*" onChange={this.handleFileChange}  className="file-upload-input" /> 
+            </div>   
             <div>  
-            </div> 
-          </div>
-  
+           </div> 
+          </div> 
+
           <div className="content">
             <div style={{ display: 'none' }} ref={this.divRef} id="parsed"></div>
           <div id="detected" className="detected-image"> 
           <img id='IMgScan' src={PassportTemplte} style={{width:'520px',height:'370px'}} alt='Empty Image'></img>
-            </div>  
- 
+           </div>   
             <div className="data-form">
               <h2>بيانات جواز السفر</h2>
               <div className="form-groupData">
                 <label>نوع الجواز</label>
-                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={(Dataobj? Dataobj.documentCode :'' )} readOnly />
-              </div>
-
+                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={Object.keys(Dataobj).length > 0 && Dataobj.documentCode !=''? Dataobj.documentCode?.toUpperCase() :'' } readOnly />
+              </div> 
               <div className="form-groupData">
                 <label>رقم الجواز</label>
-                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={(Dataobj?Dataobj.documentNumber :'' )} readOnly />
-              </div>
-
+                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={(Object.keys(Dataobj).length > 0 && Dataobj.documentNumber !=''?Dataobj.documentNumber?.toUpperCase() :'' )} readOnly />
+              </div> 
               <div className="form-groupData">
                 <label>الاسم الكامل</label>
-                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={(Dataobj? Dataobj.firstName :'')} readOnly />
-              </div>
-
+                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={(Object.keys(Dataobj).length > 0 && Dataobj.firstName !=''? Dataobj.firstName?.toUpperCase() :'')} readOnly />
+              </div> 
               <div className="form-groupData">
                 <label>الاسم الاخير</label>
-                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={(Dataobj? Dataobj.lastName :'')} readOnly />
-              </div>
-
+                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={(Object.keys(Dataobj).length > 0 && Dataobj.lastName !=''? Dataobj.lastName?.toUpperCase() :'')} readOnly />
+              </div> 
               <div className="form-groupData">
                 <label>مكان الاصدار</label>
-                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={(Dataobj ? Dataobj.issuingState :'')} readOnly />
-              </div>
-
+                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={(Object.keys(Dataobj).length > 0 && Dataobj.issuingState !=''? Dataobj.issuingState :'')} readOnly />
+              </div> 
               <div className="form-groupData">
                 <label>الجنسية</label>
-                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={(Dataobj? Dataobj.nationality :'')} readOnly />
-              </div>
-
+                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={Object.keys(Dataobj).length > 0 && Dataobj.nationality !=''? Dataobj.nationality?.toUpperCase() :''} readOnly />
+              </div> 
               <div className="form-groupData">
                 <label>تاريخ الميلاد</label>
-                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={Dataobj? Dataobj.birthDate :''} readOnly />
-              </div>
-
+                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={Object.keys(Dataobj).length > 0 && Dataobj.birthDate !=''?this.ConvertDateStringToDate(Dataobj.birthDate):''} readOnly />
+              </div> 
               <div className="form-groupData">
                 <label>تاريخ الانتهاء</label>
-                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={Dataobj?Dataobj.expirationDate :''} readOnly />
-              </div>
-
+                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={Object.keys(Dataobj).length > 0 && Dataobj.expirationDate !=''?this.ConvertDateStringToDate(Dataobj.expirationDate) :''} readOnly />
+              </div> 
               <div className="form-groupData">
                 <label>الجنس</label>
-                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={Dataobj?Dataobj.sex :''} readOnly />
+                <input style={{ color: 'red', fontWeight: 'bold', textAlign: 'center' }} type="text" value={Object.keys(Dataobj).length > 0 && Dataobj.sex !=''?Dataobj.sex?.toUpperCase() :''} readOnly />
               </div> 
               <button className="BtnTransfer" onClick={this.getTextFromDiv}>ترحيل البيانات</button>
             </div>
@@ -247,7 +329,7 @@ class OCRApp extends Component {
  
 function HomePageWithNavigate(props) {
   const navigate = useNavigate();
-  return <OCRApp clicked={()=>alert('sssssssss')} {...props} navigate={navigate} />;
+  return <OCRApp {...props} navigate={navigate} />;
 }
 
 export default withRouter(HomePageWithNavigate);
